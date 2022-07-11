@@ -1,0 +1,27 @@
+{
+  "name": "stream-amazon-sp-api",
+  "version": "1.0.0",
+  "description": "Streamable version of download by monkey patching. Only for testing/development purpose",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielecr/stream-amazon-sp-api.git"
+  },
+  "keywords": [
+    "stream",
+    "amazon-sp-api"
+  ],
+  "author": "Daniele Cruciani <daniele@smartango.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/danielecr/stream-amazon-sp-api/issues"
+  },
+  "homepage": "https://github.com/danielecr/stream-amazon-sp-api#readme",
+  "dependencies": {
+    "amazon-sp-api": "^0.7.9",
+    "xml-to-json-stream": "^1.1.0"
+  }
+}
