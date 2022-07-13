@@ -69,24 +69,6 @@ async function download(details, options = {}) {
       // Transform content to json --> take content type from which to transform to json from result header
       try {
         if (hRes.headers['content-type'].includes('xml')){
-            /*
-             - doing a parser is too complex:
-            https://codeforgeek.com/parse-large-xml-files-node/
-             - almost the same:
-            https://www.npmjs.com/package/node-xml-stream-parser
-
-             - what they are saying here?
-            https://github.com/NaturalIntelligence/fast-xml-parser/blob/master/nexttodo.md
-             - and here?
-            https://github.com/NaturalIntelligence/fast-xml-parser/issues/347
-
-            why is:
-             const {XMLParser} = require('fast-xml-parser/src/fxp');
-            ?
-
-            Suggest to use:
-            https://www.npmjs.com/package/arraybuffer-xml-parser
-            */
             const parser = xmlToJson();
             const stream = parser.createStream();
             iRes = iRes.pipe(stream);

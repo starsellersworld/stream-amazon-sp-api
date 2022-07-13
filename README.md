@@ -42,3 +42,15 @@ It add dependency to `xml-to-json-stream` module, that support stream as transfo
 ## WIP
 
 `request-stream.js` is just for GET request, then upload request should have an out version.
+
+### On xml-to-json-stream choice
+
+Ratio was:
+ - doing a parser is too complex: https://codeforgeek.com/parse-large-xml-files-node/
+ - almost the same: https://www.npmjs.com/package/node-xml-stream-parser
+
+ - what they are saying here? https://github.com/NaturalIntelligence/fast-xml-parser/blob/master/nexttodo.md
+ - and here? https://github.com/NaturalIntelligence/fast-xml-parser/issues/347
+ - Suggest to use: https://www.npmjs.com/package/arraybuffer-xml-parser
+
+At the end I found `xml-to-json-stream` package, which is simple to use and up-to-date.
