@@ -7,26 +7,28 @@ const iconv = require('iconv-lite');
 const requestStream = require('./request-stream');
 const zlib = require('zlib');
 
-const xmlToJson = require('xml-to-json-stream');
-
 async function download(details, options = {}) {
   options = Object.assign({
     unzip:true,
-    returns: "string"
+    returnType: 'none', // 'none' ,'string', or 'stream'
   }, options);
-
+  
+  let content = null; // if filled then some transform is not-streamable
+  
+  let oFile = options.file?require('fs').createWriteStream(options.file):null;
+  
   const streamToString = (iStream) => new Promise((resolve, reject) => {
-      var bufs = [];
-      iStream.on('data', function(d){ bufs.push(d); });
-      iStream.on('end', function(){
-          var buf = Buffer.concat(bufs);
-          resolve(buf.toString());
-      });
-      iStream.on('error', error => {
-          reject(error);
-      });
+    var bufs = [];
+    iStream.on('data', function(d){ bufs.push(d); });
+    iStream.on('end', function(){
+      var buf = Buffer.concat(bufs);
+      resolve(buf.toString());
+    });
+    iStream.on('error', error => {
+      reject(error);
+    });
   })
-
+  
   this._validateEncryptionDetails(details);
   // Result will be a tab-delimited flat file or an xml document
   let hRes = await requestStream({
@@ -34,30 +36,37 @@ async function download(details, options = {}) {
   });
   let iRes = hRes;
   if(iRes.statusCode !== 200) {
-      iRes.body = await streamToString(iRes);
-      this._validateUpOrDownloadSuccess(iRes, 'DOWNLOAD');
+    // NOTE: error message generally is short
+    iRes.body = await streamToString(iRes);
+    this._validateUpOrDownloadSuccess(iRes, 'DOWNLOAD');
+    // this always throw
   }
-
+  
   // Decrypt buffer
   if (details.encryptionDetails) {
-    let decipher = crypto.createDecipheriv(
-      'aes-256-cbc',
-      Buffer.from(details.encryptionDetails.key, 'base64'),
-      Buffer.from(details.encryptionDetails.initializationVector, 'base64')
-    );
+    let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(details.encryptionDetails.key, 'base64'), Buffer.from(details.encryptionDetails.initializationVector, 'base64'));
     iRes = iRes.pipe(decipher);
   }
   // Decompress if content is compressed and unzip option is true
   if (details.compressionAlgorithm && options.unzip){
-      iRes = iRes.pipe(zlib.createGunzip());
+    iRes = iRes.pipe(zlib.createGunzip());
   }
   if (!details.compressionAlgorithm || options.unzip){
     // Decode buffer with given charset
-    if (options.charset){
+    let charset = options.charset;
+    if(!charset) {
+      let charset_match = hRes.headers['content-type'].match(/\.*charset=([^;]*)/);
+      if (charset_match && charset_match[1]){
+        charset = charset_match[1];
+      }
+      if(charset == 'utf8' || charset == 'UTF-8') { // do not iconv utf8.
+        charset = undefined;
+      }
+    }
+    if (charset){
       try {
-          var converterStream = iconv.decodeStream(options.charset);
-          iRes = iRes.pipe(converterStream);
-          //console.log("is iCONVED");
+        var converterStream = iconv.decodeStream(charset);
+        iRes = iRes.pipe(converterStream);
       } catch(e){
         throw new CustomError({
           code:'DECODE_ERROR',
@@ -69,13 +78,13 @@ async function download(details, options = {}) {
       // Transform content to json --> take content type from which to transform to json from result header
       try {
         if (hRes.headers['content-type'].includes('xml')){
-            const parser = xmlToJson();
-            const stream = parser.createStream();
-            iRes = iRes.pipe(stream);
-      } else if (hRes.headers['content-type'].includes('plain')){
+          // de-stream
+          content = await streamToString(iRes);
+          content = this._xml_parser.parse(content);
+        } else if (hRes.headers['content-type'].includes('plain')){
           let iCsv = csv({
-              delimiter:'\t',
-              quote:'off'
+            delimiter:'\t',
+            quote:'off'
           });
           iRes = iRes.pipe(iCsv);
         }
@@ -83,39 +92,114 @@ async function download(details, options = {}) {
         throw new CustomError({
           code:'PARSE_ERROR',
           message:'Could not parse result to JSON.',
-          details:decrypted
+          details: iRes
         });
       }
     }
   }
-  if (options.file){
-      let oFile = require('fs').createWriteStream(options.file);
-      iRes = iRes.pipe(oFile);
+  if(oFile) {
+    if(content) {
+      iRes = oFile;
+      oFile.end(content);
+    } else {
+      iRes.pipe(oFile);
+    }
   }
-  switch (options.returns) {
-      case 'none':
-      {
-          return new Promise((resolve, reject) => {
-              iRes.on('end', ()=>{
-                  resolve();
-              })
-              iRes.on('error', error => {
-                  reject(error);
-              })
-          })
+  switch (options.returnType) {
+    case 'none':
+    {
+      if(!oFile) {
+        return undefined;
       }
-      case 'stream':
+      return new Promise((resolve, reject) => {
+        oFile.on('end',resolve);
+        iRes.on('end', ()=>{
+          resolve();
+        })
+        iRes.on('error', error => {
+          reject(error);
+        })
+      })
+    }
+    case 'stream':
+    if(!content) {
       return Promise.resolve(iRes);
-      case 'string':
-      default:
-      {
-          return streamToString(iRes);
+    }
+    case 'string':
+    default:
+    {
+      if(content) {
+        return content;
+      } else {
+        return streamToString(iRes);
       }
+    }
   }
+  throw new CustomError({
+    code:'PARSE_ERROR',
+    message:'It is not possible XML to JSON and to stream together.',
+    details: iRes
+  }); 
+}
+
+async function upload(details, feed) {
+  this._validateEncryptionDetails(details);
+  if (!feed || (!feed.content && !feed.file)){
+    throw new CustomError({
+      code:'NO_FEED_CONTENT_PROVIDED',
+      message:'Please provide "content" (string) or "file" (absolute path) of feed.'
+    });
+  }
+  if (!feed.contentType){
+    throw new CustomError({
+      code:'NO_FEED_CONTENT_TYPE_PROVIDED',
+      message:'Please provide "contentType" of feed (should be identical to the contentType used in "createFeedDocument" operation).'
+    });
+  }
+  let iStream;// = feed.content?
+  if(feed.content) {
+    const { Readable } = require("stream");
+    iStream = Readable.from(feed.content);
+  } else {
+    iStream = require('fs').createWriteStream(feed.file);
+  }
+  //let feed_content = feed.content || await this._readFile(feed.file, feed.contentType);
+  //let content_buffer;
+  if (details.encryptionDetails) {
+    // Encrypt content to upload
+    let decipher = crypto.createCipheriv(
+      'aes-256-cbc',
+      Buffer.from(details.encryptionDetails.key, 'base64'),
+      Buffer.from(details.encryptionDetails.initializationVector, 'base64')
+      );
+    iStream = iStream.pipe(decipher);
+  }
+  return new Promise((resolve,reject) => {
+    let uploadStream = require('https').request(details.url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": feed.contentType,
+      },
+    }, (res) => {
+      res.on('end', () => {
+        this._validateUpOrDownloadSuccess(res, 'UPLOAD');
+        if (!res.complete) {
+          console.error('The connection was terminated while the message was still being sent');
+        }
+      });
+    });
+    iStream.pipe(uploadStream);
+    iStream.on('end', resolve);
+    iStream.on('error', reject);
+    uploadStream.on('error', reject);
+  }).then(r=>{
+    return {success:true};
+  });
 }
 
 module.exports = (options) => {
   let spApi = new SellingPartnerAPI(options);
   spApi.download = download.bind(spApi);
+  //spApi.upload = upload.bind(spApi);
   return spApi;
 }

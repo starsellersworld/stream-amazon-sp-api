@@ -1,6 +1,6 @@
 {
   "name": "stream-amazon-sp-api",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Streamable version of download by monkey patching. Only for testing/development purpose",
   "main": "index.js",
   "scripts": {
@@ -21,8 +21,7 @@
   },
   "homepage": "https://github.com/danielecr/stream-amazon-sp-api#readme",
   "dependencies": {
-    "amazon-sp-api": "^0.7.9",
-    "xml-to-json-stream": "^1.1.0"
+    "amazon-sp-api": "^0.7.10"
   },
   "devDependencies": {
     "dotenv": "^16.0.1"

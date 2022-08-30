@@ -3,6 +3,10 @@
 After short discussion in https://github.com/amz-tools/amazon-sp-api/issues/56
 here is the code that stream the download of a file, sparing memory and resource for large report files coming from amazon
 
+**Streaming upload is disabled** because it is still untested. It will be enabled by default as soon it get tested.
+
+NOTE: **breaking change** the option `returns` became `returnType`.
+
 ## Quick test
 
 > let spApi = require('stream-amazon-sp-api');
@@ -24,7 +28,7 @@ try {
   await SellingPartner.download(reportDocument, {
       //charset:'cp1252',
       json: true,
-      returns: 'none',
+      returnType: 'none', // 'none' ,'string', or 'stream'
       file: targetFile
   });
 } catch (err) {
@@ -34,23 +38,35 @@ try {
 }
 ```
 
+## Oddities
+
+`returnType:stream` and `json:true` are "partially compatible options": when used together and upstream document content-type is an xml, then this patch will throw Error.
+Note that most of the time amazon compress xml, and that xml content-type is taken from http headers, and so I am not really sure the code works.
+Anyway it is better not to transform xml-to-json large files, or adopt some clever strategy (see section below).
+
+If `returnType:none` and no `file:filename` was specified, the patched method will return undefined, after doing nothing, I can suppose that errors also are not detected, in fact stream are opened, piped, but no writable is passed to it.
 
 ## dependency added
 
-It add dependency to `xml-to-json-stream` module, that support stream as transformer.
+~~It add dependency to `xml-to-json-stream` module, that support stream as transformer.~~
+none
 
 ## WIP
 
 `request-stream.js` is just for GET request, then upload request should have an out version.
 
-### On xml-to-json-stream choice
 
-Ratio was:
- - doing a parser is too complex: https://codeforgeek.com/parse-large-xml-files-node/
- - almost the same: https://www.npmjs.com/package/node-xml-stream-parser
+## Streaming csv-to-json transformation
 
- - what they are saying here? https://github.com/NaturalIntelligence/fast-xml-parser/blob/master/nexttodo.md
- - and here? https://github.com/NaturalIntelligence/fast-xml-parser/issues/347
- - Suggest to use: https://www.npmjs.com/package/arraybuffer-xml-parser
+csvtojson is more clever than one would expect, see https://github.com/Keyang/node-csvtojson/blob/master/src/Result.ts
+In fact it adds a '[' at begin then it parse line by line adding a regular json for each line, separated by commas.
+So, it really stream the content.
 
-At the end I found `xml-to-json-stream` package, which is simple to use and up-to-date.
+### streaming XML-to-JSON transformation
+
+as commented in upstream issue report, I found this in StackOverflow
+https://stackoverflow.com/a/52562921/250970
+and https://www.npmjs.com/package/xml-flow https://www.npmjs.com/package/xml-stream so
+https://www.npmjs.com/package/xtreamer
+
+The example in xtreamer is simple enough to be used with `returnType:stream`
