@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/danielecr/stream-amazon-sp-api.git"
+    "url": "git+https://github.com/starsellersworld/stream-amazon-sp-api.git"
   },
   "keywords": [
     "stream",
@@ -17,9 +17,9 @@
   "author": "Daniele Cruciani <daniele@smartango.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/danielecr/stream-amazon-sp-api/issues"
+    "url": "https://github.com/starsellersworld/stream-amazon-sp-api/issues"
   },
-  "homepage": "https://github.com/danielecr/stream-amazon-sp-api#readme",
+  "homepage": "https://github.com/starsellersworld/stream-amazon-sp-api#readme",
   "dependencies": {
     "amazon-sp-api": "^0.7.10"
   },
