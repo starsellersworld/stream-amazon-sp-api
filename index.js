@@ -161,7 +161,7 @@ async function upload(details, feed) {
     const { Readable } = require("stream");
     iStream = Readable.from(feed.content);
   } else {
-    iStream = require('fs').createWriteStream(feed.file);
+    iStream = require('fs').createReadStream(feed.file);
   }
   //let feed_content = feed.content || await this._readFile(feed.file, feed.contentType);
   //let content_buffer;
@@ -200,6 +200,6 @@ async function upload(details, feed) {
 module.exports = (options) => {
   let spApi = new SellingPartnerAPI(options);
   spApi.download = download.bind(spApi);
-  //spApi.upload = upload.bind(spApi);
+  spApi.upload = upload.bind(spApi);
   return spApi;
 }
