@@ -3,7 +3,8 @@
 After short discussion in https://github.com/amz-tools/amazon-sp-api/issues/56
 here is the code that stream the download of a file, sparing memory and resource for large report files coming from amazon
 
-**Streaming upload is disabled** because it is still untested. It will be enabled by default as soon it get tested.
+~~**Streaming upload is disabled** because it is still untested. It will be enabled by default as soon it get tested.~~
+**Streaming for upload** is enabled from v1.0.5, it has no option, it just stream out over http from `content` or from `file`.
 
 NOTE: **breaking change** the option `returns` became `returnType`.
 
