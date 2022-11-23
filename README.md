@@ -4,7 +4,13 @@ After short discussion in https://github.com/amz-tools/amazon-sp-api/issues/56
 here is the code that stream the download of a file, sparing memory and resource for large report files coming from amazon
 
 ~~**Streaming upload is disabled** because it is still untested. It will be enabled by default as soon it get tested.~~
-**Streaming for upload** is enabled from v1.0.5, it has no option, it just stream out over http from `content` or from `file`.
+
+~~**Streaming for upload** is enabled from v1.0.5, it has no option, it just stream out over http from `content` or from `file`.~~
+
+**Streaming for upload: uploadStream()** from v1.0.6 there is a new method `uploadStream()`, I did not tested all feeds API, for upload of files that does not need a cypher it works, if a cypher is needed the stream version of upload probably will fails. Reason is the required header `Content-Length` which I have no idea how to inject after (or how to evaluate the encrypted size before actually encode data (aes is a block algo, I suppose is not impossible to do it by very simple math)).
+
+Some credits goes to @stefanmaric for defer() staff used in request-stream-PUT version.
+
 
 NOTE: **breaking change** the option `returns` became `returnType`.
 
@@ -38,6 +44,40 @@ try {
 // check targetFile content
 }
 ```
+
+upload example (feeds API):
+
+```
+  let feedDocument = await spApi.callAPI({
+    operation:'createFeedDocument',
+    endpoint: "feeds",
+    body: {
+      "contentType": feedInfos.contentType
+    },
+    options: {
+      version: "2021-06-30"
+    }
+  })
+  // simply upload the document. Use spApi for convenience
+  let feed = {
+    "file": feedInfos.filename,
+    "contentType": feedInfos.contentType,
+  }
+  // new method! use .upload() if it does not work
+  let response = await spApi.uploadStream(feedDocument, feed);
+  // it is {success:true}
+  let res = await spApi.callAPI({
+    operation:'createFeed',
+    endpoint: "feeds",
+    body: {
+      marketplaceIds: ["MARKETID"],
+      feedType: feedInfos.feedType,
+      inputFeedDocumentId: feedDocument.feedDocumentId
+    }
+  });
+  return res;
+```
+Note that this is the only case I really tested.
 
 ## Oddities
 

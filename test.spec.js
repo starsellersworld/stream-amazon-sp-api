@@ -1,4 +1,5 @@
 require('dotenv').config();
+const assert = require('assert').strict;
 
 let getSpApi = require('./index');
 
@@ -17,5 +18,9 @@ let config = {
 
 
 let spApi = getSpApi(config);
-console.log(spApi);
-console.log(spApi.callAPI);
+//console.log(spApi);
+//console.log(spApi.callAPI);
+//console.log(spApi.uploadStream);
+
+assert.equal(typeof spApi.uploadStream, 'function');
+assert.equal(typeof spApi.callAPI, 'function');

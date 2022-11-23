@@ -142,7 +142,7 @@ async function download(details, options = {}) {
   }); 
 }
 
-async function upload(details, feed) {
+async function uploadStream(details, feed) {
   this._validateEncryptionDetails(details);
   if (!feed || (!feed.content && !feed.file)){
     throw new CustomError({
@@ -157,49 +157,62 @@ async function upload(details, feed) {
     });
   }
   let iStream;// = feed.content?
+  let contentLength;
   if(feed.content) {
     const { Readable } = require("stream");
     iStream = Readable.from(feed.content);
+    contentLength = feed.content.length;
   } else {
-    iStream = require('fs').createReadStream(feed.file);
+    iStream = require('fs').createReadStream(feed.file, 'utf-8');
+    contentLength = require("fs").statSync(feed.file).size
   }
-  //let feed_content = feed.content || await this._readFile(feed.file, feed.contentType);
-  //let content_buffer;
   if (details.encryptionDetails) {
     // Encrypt content to upload
-    let decipher = crypto.createCipheriv(
+    let cipher = crypto.createCipheriv(
       'aes-256-cbc',
       Buffer.from(details.encryptionDetails.key, 'base64'),
       Buffer.from(details.encryptionDetails.initializationVector, 'base64')
       );
-    iStream = iStream.pipe(decipher);
+    iStream = iStream.pipe(cipher);
   }
-  return new Promise((resolve,reject) => {
-    let uploadStream = require('https').request(details.url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": feed.contentType,
-      },
-    }, (res) => {
-      res.on('end', () => {
-        this._validateUpOrDownloadSuccess(res, 'UPLOAD');
-        if (!res.complete) {
-          console.error('The connection was terminated while the message was still being sent');
-        }
-      });
+  let {req: uploadStream, res} = await requestStream({
+    method: "PUT",
+    url: details.url,
+    headers: {
+      "Content-Type": feed.contentType,
+      "Content-length": contentLength
+    }
+  });
+  let uStream = iStream.pipe(uploadStream);
+  let theUpload = new Promise((resolve,reject) => {
+    uStream.on('error', err=> {
+      //console.log("uStream errr", err);
+      reject(err);
     });
-    iStream.pipe(uploadStream);
-    iStream.on('end', resolve);
-    iStream.on('error', reject);
-    uploadStream.on('error', reject);
+    //iStream.on('end', resolve);
+    uploadStream.on('error', err=> {
+      //console.log("uploadStream errr", err);
+      reject(err);
+    });
+    uStream.on('drain', (data)=> {
+      //console.log('end ustream', data);
+      resolve();
+    })
   }).then(r=>{
     return {success:true};
+  });
+  return res.then(response => {
+    //console.log(response);
+    this._validateUpOrDownloadSuccess(response, 'UPLOAD');
+    return theUpload.then(_=>{
+      return {success:true};
+    })
   });
 }
 
 module.exports = (options) => {
   let spApi = new SellingPartnerAPI(options);
   spApi.download = download.bind(spApi);
-  spApi.upload = upload.bind(spApi);
+  spApi.uploadStream = uploadStream.bind(spApi);
   return spApi;
 }
