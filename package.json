@@ -1,6 +1,6 @@
 {
   "name": "stream-amazon-sp-api",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Streamable version of download by monkey patching. Only for testing/development purpose",
   "main": "index.js",
   "scripts": {
