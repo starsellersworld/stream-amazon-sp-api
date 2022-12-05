@@ -174,6 +174,7 @@ async function uploadStream(details, feed) {
       Buffer.from(details.encryptionDetails.initializationVector, 'base64')
       );
     iStream = iStream.pipe(cipher);
+    contentLength = (Math.floor(contentLength / 16) + 2) * 16;
   }
   let {req: uploadStream, res} = await requestStream({
     method: "PUT",
@@ -189,7 +190,10 @@ async function uploadStream(details, feed) {
       //console.log("uStream errr", err);
       reject(err);
     });
-    //iStream.on('end', resolve);
+    iStream.on("end", ()=> {
+      uploadStream.end();
+      resolve();
+    })
     uploadStream.on('error', err=> {
       //console.log("uploadStream errr", err);
       reject(err);
@@ -201,10 +205,9 @@ async function uploadStream(details, feed) {
   }).then(r=>{
     return {success:true};
   });
-  return res.then(response => {
-    //console.log(response);
-    this._validateUpOrDownloadSuccess(response, 'UPLOAD');
-    return theUpload.then(_=>{
+  return theUpload.then(_=>{
+    return res.then(response => {
+      this._validateUpOrDownloadSuccess(response, 'UPLOAD');
       return {success:true};
     })
   });

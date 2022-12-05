@@ -7,7 +7,8 @@ here is the code that stream the download of a file, sparing memory and resource
 
 ~~**Streaming for upload** is enabled from v1.0.5, it has no option, it just stream out over http from `content` or from `file`.~~
 
-**Streaming for upload: uploadStream()** from v1.0.6 there is a new method `uploadStream()`, I did not tested all feeds API, for upload of files that does not need a cypher it works, if a cypher is needed the stream version of upload probably will fails. Reason is the required header `Content-Length` which I have no idea how to inject after (or how to evaluate the encrypted size before actually encode data (aes is a block algo, I suppose is not impossible to do it by very simple math)).
+**Streaming for upload: uploadStream()** from v1.0.6 there is a new method `uploadStream()`, I did not tested all feeds API. For AES case the Content-Length is calculated as `((origLen div 16) + 2) * 16`, but not tested.
+
 
 Some credits goes to @stefanmaric for defer() staff used in request-stream-PUT version.
 
